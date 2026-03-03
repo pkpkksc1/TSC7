@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TSC 뷰어 (4/5/6)</title>
+<style>
+  :root{ --bg:#fff; --fg:#000; --line:#000; --muted:#444; --shadow:0 10px 26px rgba(0,0,0,.10); }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; }
+  .topbar{ position:sticky; top:0; z-index:30; background:#fff; border-bottom:2px solid var(--line); }
+  .topbarInner{ max-width:1100px; margin:0 auto; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .brand{ font-weight:900; font-size:18px; padding:8px 12px; border:2px solid var(--line); min-width:120px; text-align:center; }
+  .tabs{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .tabBtn{ border:2px solid var(--line); background:#fff; color:#000; padding:8px 12px; font-weight:900; cursor:pointer; border-radius:12px; user-select:none; }
+  .tabBtn.active{ background:#000; color:#fff; }
+  .tools{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .toolBtn{ border:2px solid var(--line); background:#fff; color:#000; padding:8px 12px; font-weight:900; cursor:pointer; border-radius:12px; }
+  .fileName{ font-size:12px; font-weight:800; border:2px solid var(--line); padding:8px 10px; border-radius:12px; min-width:210px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:14px 12px 36px; }
+  .status{ text-align:center; font-weight:900; font-size:14px; margin:10px 0 12px; }
+  .panel{ border:2px solid var(--line); border-radius:18px; padding:14px; box-shadow:var(--shadow); }
+  .pageImg{ width:100%; max-height:42vh; object-fit:contain; border:2px solid var(--line); border-radius:14px; display:none; margin-bottom:12px; background:#fff; }
+  .content{ white-space:pre-wrap; line-height:1.75; font-size:18px; min-height:48vh; }
+  .navBtn{ position:fixed; top:50%; transform:translateY(-50%); width:46px; height:46px; border:2px solid var(--line); background:#fff; color:#000; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center; border-radius:14px; user-select:none; z-index:40; opacity:.96; }
+  .navLeft{ left:10px; } .navRight{ right:10px; }
+  .navIcon{ font-size:22px; line-height:1; margin-top:-1px; }
+  @media (max-width:720px){
+    .brand{ font-size:16px; min-width:105px; padding:7px 10px; }
+    .fileName{ min-width:170px; }
+    .content{ font-size:16px; min-height:56vh; }
+    .navBtn{ width:42px; height:42px; border-radius:12px; }
+    .navIcon{ font-size:20px; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbarInner">
+      <div class="brand" id="brand">TSC</div>
+      <div class="tabs" id="tabs"></div>
+      <div class="tools">
+        <button class="toolBtn" id="reloadBtn">불러오기</button>
+        <input id="fileInput" type="file" accept=".txt" style="display:none" />
+        <div class="fileName" id="fileLabel">source: -</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="navBtn navLeft" id="prevBtn" aria-label="이전"><span class="navIcon">‹</span></button>
+  <button class="navBtn navRight" id="nextBtn" aria-label="다음"><span class="navIcon">›</span></button>
+
+  <div class="wrap">
+    <div class="status" id="status">불러오는 중...</div>
+    <div class="panel">
+      <img id="pageImg" class="pageImg" alt="" />
+      <div id="content" class="content">로딩...</div>
+    </div>
+  </div>
+
+<script>
+  const SOURCES = [
+    { key:"TSC4", label:"TSC4", url:"tsc4/TSC4.txt" },
+    { key:"TSC5", label:"TSC5", url:"tsc5/TSC5.txt" },
+    { key:"TSC6", label:"TSC6", url:"tsc6/TSC6.txt" },
+  ];
+  const SEP_REGEX = /\n\s*-{3,}\s*\n/g; // --- 이상이면 다 OK
+  let pages = [];
+  let idx = 0;
+  let current = SOURCES[0];
+  let currentSourceLabel = "";
+  const $ = (id)=>document.getElementById(id);
+
+  function normalize(t){ return t.replace(/\r\n/g,"\n").replace(/\r/g,"\n"); }
+  function splitPages(t){ return t.split(SEP_REGEX).map(s=>s.trim()).filter(Boolean); }
+
+  // 페이지 맨 첫 줄: [img:img/001.png]
+  function extractImage(pageText){
+    const m = pageText.match(/^\s*\[img:(.+?)\]\s*\n/i);
+    if(!m) return { imgPath:null, text: pageText.trim() };
+    return { imgPath: m[1].trim(), text: pageText.slice(m[0].length).trim() };
+  }
+
+  function renderTabs(){
+    const tabs = $("tabs");
+    tabs.innerHTML="";
+    for(const s of SOURCES){
+      const b = document.createElement("button");
+      b.className = "tabBtn" + (s.key===current.key ? " active" : "");
+      b.textContent = s.label;
+      b.onclick = ()=>setTab(s.key);
+      tabs.appendChild(b);
+    }
+    $("brand").textContent = current.label;
+  }
+
+  function render(){
+    $("fileLabel").textContent = currentSourceLabel || `source: ${current.url}`;
+
+    if(!pages.length){
+      $("status").textContent="데이터 없음";
+      $("content").textContent="txt에 내용을 넣고\n--- (하이픈 3개 이상) 로 페이지를 구분해줘!";
+      $("pageImg").style.display="none";
+      $("pageImg").removeAttribute("src");
+      return;
+    }
+    if(idx<0) idx=0;
+    if(idx>=pages.length) idx=pages.length-1;
+
+    const {imgPath, text} = extractImage(pages[idx]);
+    $("content").textContent = text || "";
+    $("status").textContent = `${current.label} · ${idx+1} / ${pages.length}`;
+
+    const img = $("pageImg");
+    if(imgPath){
+      img.src = imgPath;
+      img.style.display = "block";
+      img.alt = `page ${idx+1}`;
+    }else{
+      img.style.display="none";
+      img.removeAttribute("src");
+      img.alt="";
+    }
+  }
+
+  function next(){ if(!pages.length) return; idx=(idx+1)%pages.length; render(); }
+  function prev(){ if(!pages.length) return; idx=(idx-1+pages.length)%pages.length; render(); }
+
+  async function loadFromUrl(url,label){
+    try{
+      const res = await fetch(url, { cache:"no-store" });
+      if(!res.ok) throw new Error("fetch failed");
+      const text = normalize(await res.text());
+      pages = splitPages(text);
+      idx = 0;
+      currentSourceLabel = label || `source: ${url}`;
+      render();
+    }catch(e){
+      pages=[];
+      currentSourceLabel = label || `source: ${url}`;
+      $("status").textContent="파일 못 불러옴";
+      $("content").textContent="파일 경로/이름(대소문자 포함) 확인해줘!";
+      $("pageImg").style.display="none";
+      $("pageImg").removeAttribute("src");
+    }
+  }
+
+  function loadFromLocalFile(file){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const text = normalize(String(reader.result||""));
+      pages = splitPages(text);
+      idx = 0;
+      currentSourceLabel = `source: (local) ${file.name}`;
+      render();
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  function setTab(key){
+    const found = SOURCES.find(s=>s.key===key);
+    if(!found) return;
+    current = found;
+    idx = 0;
+    renderTabs();
+    loadFromUrl(current.url, `source: ${current.url}`);
+  }
+
+  $("nextBtn").addEventListener("click", next);
+  $("prevBtn").addEventListener("click", prev);
+
+  window.addEventListener("keydown",(e)=>{
+    if(e.target && (e.target.tagName==="TEXTAREA" || e.target.tagName==="INPUT")) return;
+    if(e.key==="ArrowRight") next();
+    if(e.key==="ArrowLeft") prev();
+  });
+
+  // 불러오기: 로컬 txt 선택해서 즉시 보기
+  $("reloadBtn").addEventListener("click", ()=>{
+    $("fileInput").value="";
+    $("fileInput").click();
+  });
+  $("fileInput").addEventListener("change",(e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(f) loadFromLocalFile(f);
+  });
+
+  // init
+  renderTabs();
+  loadFromUrl(current.url, `source: ${current.url}`);
+</script>
+</body>
+</html>
