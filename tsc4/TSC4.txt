@@ -1,6 +1,4 @@
 
----
-
 你喜欢看电影吗？
 Nǐ xǐhuān kàn diànyǐng ma?
 영화 보는 것을 좋아하니?
@@ -1708,4 +1706,5 @@ uòzhě kāfēi zhèyàng de huà xiàoguǒ hen hǎo
    요즘 자주 보는 TV 프로그램이 뭐예요?
 
 ---
+
 
