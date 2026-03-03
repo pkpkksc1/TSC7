@@ -1,4 +1,5 @@
 --------------------------
+[img:img/imgimg001.png]
 1. 有一天，小民要去郊游 / 春游 / 秋游，他很高兴。 
 Yǒu yì tiān, Xiǎo Mín yào qù jiāo yóu / chūn yóu / qiū yóu, tā hěn gāo xìng. 
 어느 날, 샤오민은 소풍 / 봄소풍 / 가을소풍을 가게 되어 아주 기뻐했다. 
@@ -11,5 +12,6 @@ Dàn shì Xiǎo Mín méi yǒu tīng mā ma de huà, suǒ yǐ chuān duǎn kù q
 4. 没想到，小民被蛇咬了。小民住院了，他很后悔。 
 Méi xiǎng dào, Xiǎo Mín bèi shé yǎo le. Xiǎo Mín zhù yuàn le, tā hěn hòu huǐ. 
 뜻밖에도 샤오민은 뱀에게 물려 병원에 입원하게 되었고, 매우 후회했다.
+
 
 --------------------------
