@@ -64,7 +64,7 @@
     { key:"TSC5", label:"TSC5", url:"tsc5/TSC5.txt" },
     { key:"TSC6", label:"TSC6", url:"tsc6/TSC6.txt" },
   ];
-  const SEP_REGEX = /\n\s*-{3,}\s*\n/g; // --- 이상이면 다 OK
+  const SEP_REGEX = /\n\s*===PAGE===\s*\n/g;
   let pages = [];
   let idx = 0;
   let current = SOURCES[0];
